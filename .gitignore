@@ -1,0 +1,16 @@
+# Python / virtualenvs
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# User config & secrets (API keys, local paths)
+config.json
+*.log

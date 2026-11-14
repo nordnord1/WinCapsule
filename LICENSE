@@ -1,0 +1,36 @@
+WinCapsule Non-Commercial Source-Available License
+Copyright (c) 2026 nord. All rights reserved.
+
+This license governs the use, modification, and redistribution of WinCapsule
+and its accompanying source code, assets, and compiled binaries ("the Software").
+
+1. PERMISSIONS (NON-COMMERCIAL USE)
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+the Software and associated documentation files, solely for personal,
+educational, research, or non-commercial purposes, to:
+  a) Use, run, and study the Software;
+  b) Fork the repository, modify, adapt, and build upon the Software;
+  c) Redistribute copies or modified versions of the Software strictly without
+     commercial fee, monetization, or commercial gain.
+
+2. RESTRICTIONS (NO COMMERCIAL USE)
+You may NOT use, reproduce, distribute, sublicense, sell, bundle, host as a
+paid service, or otherwise exploit the Software or any derivative work for any
+commercial purpose, direct or indirect monetary gain, or proprietary commercial
+product without prior explicit written permission from the copyright holder (nord).
+
+3. MANDATORY ATTRIBUTION ("by nord")
+Any redistribution, fork, release, or derivative work of the Software—whether
+in source code or compiled executable form—MUST:
+  a) Include this LICENSE file and the above copyright notice intact;
+  b) Preserve clear and visible attribution to the original author: "by nord"
+     (including keeping the original "by nord" attribution in the application
+     interface, documentation, and project README).
+
+4. DISCLAIMER OF WARRANTY
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHOR OR COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY,
+ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
