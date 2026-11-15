@@ -394,13 +394,20 @@ def test_screen_ocr_overlay_and_service(qapp, monkeypatch):
     import services.screen_ocr as screen_ocr
     from ui.widgets import ScreenOcrOverlay
 
-    # 1. Image preparation upscales small crops to RGBA8888
+    # 1. Image preparation upscales small crops to RGBA8888 & strips demo-key banner
     tiny = QImage(120, 40, QImage.Format.Format_RGB32)
     tiny.fill(QColor("#22252A"))
     prepared = screen_ocr._prepare_ocr_image(tiny)
     assert prepared.width() == 240
     assert prepared.height() == 80
     assert prepared.format() == QImage.Format.Format_RGBA8888
+
+    noisy = (
+        "[Note: the 'helloworld' demo key is for testing only, not for production. "
+        "Get your own free OCR API key at https://ocr.space/ocrapi/freekey]\r\n\r\n"
+        "Hello WinCapsule 2026"
+    )
+    assert screen_ocr._clean_cloud_ocr_text(noisy) == "Hello WinCapsule 2026"
 
     # 2. ScreenOcrOverlay drag selection reveals floating Copy & Translate buttons
     overlay = ScreenOcrOverlay()
@@ -468,7 +475,7 @@ def test_screen_ocr_overlay_and_service(qapp, monkeypatch):
     import services.text_tools as text_tools
     monkeypatch.setattr(screen_ocr, "_ocr_via_winrt", lambda *a, **k: None)
     monkeypatch.setattr(screen_ocr, "_ocr_via_tesseract", lambda *a, **k: None)
-    monkeypatch.setattr(screen_ocr, "_ocr_via_cloud", lambda _png: "Hello OCR")
+    monkeypatch.setattr(screen_ocr, "_ocr_via_cloud", lambda _png, api_key="": "Hello OCR")
     monkeypatch.setattr(text_tools, "translate_text", lambda t, sl="auto", tl="uk": ("Привіт OCR", "en", tl))
 
     cfg = AppConfig()

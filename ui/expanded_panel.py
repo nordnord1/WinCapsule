@@ -1415,7 +1415,12 @@ class ExpandedPanel(QWidget):
         self._tr_debounce.stop()
         self.loading_dots.start()
         self.text_tool_status.setText(tr("status_recognizing"))
-        self._ocr_service.recognize_image(image, action=action, lang_hint=self._src_lang)
+        self._ocr_service.recognize_image(
+            image,
+            action=action,
+            lang_hint=self._src_lang,
+            api_key=self._cfg.modules.ocr_api_key,
+        )
 
     def _on_ocr_ready(self, req_id: int, text: str, action: str) -> None:
         if req_id != self._ocr_service.latest_id:

@@ -222,6 +222,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ocr_empty": "Текст на ділянці не знайдено",
         "ocr_err": "Не вдалося розпізнати текст",
         "ocr_hint": "Виділіть ділянку екрану мишкою · Esc — скасувати",
+        "ocr_api_key": "OCR API",
     },
     "ru": {
         "page_0": "Главная",
@@ -436,6 +437,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ocr_empty": "Текст в области не найден",
         "ocr_err": "Не удалось распознать текст",
         "ocr_hint": "Выделите область экрана мышкой · Esc — отмена",
+        "ocr_api_key": "OCR API",
     },
     "en": {
         "page_0": "Home",
@@ -650,6 +652,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ocr_empty": "No text found in region",
         "ocr_err": "Could not recognize text",
         "ocr_hint": "Drag to select a screen area · Esc to cancel",
+        "ocr_api_key": "OCR API",
     },
 }
 

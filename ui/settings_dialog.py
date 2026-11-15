@@ -334,6 +334,18 @@ class InlineSettingsPanel(QWidget):
         clip_row.addWidget(self.clip_max_spin)
         lay.addLayout(clip_row)
 
+        ocr_row = QHBoxLayout()
+        ocr_row.setSpacing(8)
+        self.ocr_key_lbl = _muted(tr("ocr_api_key"))
+        self.ocr_key_lbl.setFixedWidth(64)
+        self.ocr_key_edit = QLineEdit()
+        self.ocr_key_edit.setEchoMode(QLineEdit.EchoMode.PasswordEchoOnEdit)
+        self.ocr_key_edit.setPlaceholderText("OCR.space API Key (optional)")
+        self.ocr_key_edit.editingFinished.connect(self._emit_live)
+        ocr_row.addWidget(self.ocr_key_lbl)
+        ocr_row.addWidget(self.ocr_key_edit, 1)
+        lay.addLayout(ocr_row)
+
     def _open_slot_menu(self, slot_idx: int) -> None:
         btn = self.slot_btns[slot_idx]
         menu = QMenu(self)
@@ -577,6 +589,7 @@ class InlineSettingsPanel(QWidget):
         self.del_folder_btn.setText(tr("delete"))
 
         self.api_lbl.setText(tr("api_key"))
+        self.ocr_key_lbl.setText(tr("ocr_api_key"))
         self.city_set_lbl.setText(tr("city"))
         self.apply_w_btn.setText(tr("apply"))
         self.refresh_lbl.setText(tr("refresh_every"))
@@ -757,6 +770,7 @@ class InlineSettingsPanel(QWidget):
             self.set_overview_slot(1, m.overview_tile_2, emit=False)
             self.set_overview_slot(2, m.overview_tile_3, emit=False)
             self.clip_max_spin.setValue(self._cfg.clipboard.max_items)
+            self.ocr_key_edit.setText(m.ocr_api_key)
 
             self._rebuild_folders_list_widget()
 
@@ -865,6 +879,7 @@ class InlineSettingsPanel(QWidget):
         m.show_capslock_toast = self.chk_capslock.isChecked()
         m.show_device_toast = self.chk_devices.isChecked()
         m.show_download_toast = self.chk_downloads.isChecked()
+        m.ocr_api_key = self.ocr_key_edit.text().strip()
         self._cfg.clipboard.max_items = self.clip_max_spin.value()
 
         watched = [

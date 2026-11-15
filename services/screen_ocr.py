@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -186,11 +187,23 @@ def _ocr_via_tesseract(png_bytes: bytes, lang_hint: str = "auto") -> str | None:
     return None
 
 
-def _ocr_via_cloud(png_bytes: bytes) -> str:
+_OCR_NOTE_RE = re.compile(
+    r"^\[Note:[^\n]*?ocr\.space[^\n]*\]\s*",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _clean_cloud_ocr_text(text: str) -> str:
+    """Strip OCR.space demo-key notice lines while preserving recognized text."""
+    return _OCR_NOTE_RE.sub("", text).strip()
+
+
+def _ocr_via_cloud(png_bytes: bytes, api_key: str = "") -> str:
+    key = (api_key or "").strip() or "helloworld"
     resp = requests.post(
         "https://api.ocr.space/parse/image",
         files={"file": ("capture.png", png_bytes, "image/png")},
-        data={"apikey": "helloworld", "OCREngine": "2", "scale": "true"},
+        data={"apikey": key, "OCREngine": "2", "scale": "true"},
         timeout=14,
     )
     resp.raise_for_status()
@@ -198,7 +211,11 @@ def _ocr_via_cloud(png_bytes: bytes) -> str:
     if payload.get("IsErroredOnProcessing"):
         raise RuntimeError(str(payload.get("ErrorMessage") or "ocr error"))
     parsed = payload.get("ParsedResults") or []
-    texts = [str(r.get("ParsedText", "")).strip() for r in parsed if isinstance(r, dict)]
+    texts = [
+        _clean_cloud_ocr_text(str(r.get("ParsedText", "")))
+        for r in parsed
+        if isinstance(r, dict)
+    ]
     return "\n".join(t for t in texts if t).strip()
 
 
@@ -208,6 +225,7 @@ def recognize_bytes(
     height: int,
     png_bytes: bytes,
     lang_hint: str = "auto",
+    api_key: str = "",
 ) -> str:
     """Run offline WinRT -> local Tesseract -> OCR.space cloud recognition."""
     txt = _ocr_via_winrt(rgba_bytes, width, height, lang_hint=lang_hint)
@@ -218,7 +236,7 @@ def recognize_bytes(
     if txt_tess is not None:
         return txt_tess
 
-    return _ocr_via_cloud(png_bytes)
+    return _ocr_via_cloud(png_bytes, api_key=api_key)
 
 
 class OcrService(QObject):
@@ -237,6 +255,7 @@ class OcrService(QObject):
         image: QImage,
         action: str = "translate",
         lang_hint: str = "auto",
+        api_key: str = "",
     ) -> int:
         prepared = _prepare_ocr_image(image)
         if prepared.isNull():
@@ -251,7 +270,7 @@ class OcrService(QObject):
 
         threading.Thread(
             target=self._worker,
-            args=(req_id, rgba_bytes, width, height, png_bytes, action, lang_hint),
+            args=(req_id, rgba_bytes, width, height, png_bytes, action, lang_hint, api_key),
             daemon=True,
         ).start()
         return req_id
@@ -265,9 +284,17 @@ class OcrService(QObject):
         png_bytes: bytes,
         action: str,
         lang_hint: str,
+        api_key: str = "",
     ) -> None:
         try:
-            text = recognize_bytes(rgba_bytes, width, height, png_bytes, lang_hint=lang_hint)
+            text = recognize_bytes(
+                rgba_bytes,
+                width,
+                height,
+                png_bytes,
+                lang_hint=lang_hint,
+                api_key=api_key,
+            )
             self.ocr_ready.emit(req_id, text, action)
         except Exception:
             self.ocr_error.emit(req_id, tr("ocr_err"))

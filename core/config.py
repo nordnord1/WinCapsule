@@ -85,6 +85,7 @@ class ModulesConfig:
     show_device_toast: bool = True
     show_download_toast: bool = True
     show_clipboard: bool = True
+    ocr_api_key: str = ""
 
 
 @dataclass
