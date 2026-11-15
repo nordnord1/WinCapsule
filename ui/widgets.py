@@ -6,20 +6,23 @@ from datetime import datetime, timedelta
 import math
 import os
 import time
-from PySide6.QtCore import QEasingCurve, QPointF, QRectF, Qt, QTimer, QVariantAnimation, Signal
+from PySide6.QtCore import QEasingCurve, QPoint, QPointF, QRect, QRectF, Qt, QTimer, QVariantAnimation, Signal
 from PySide6.QtGui import (
     QColor,
     QCursor,
     QFont,
     QGuiApplication,
+    QImage,
     QLinearGradient,
     QPainter,
     QPainterPath,
     QPen,
+    QPixmap,
 )
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QHBoxLayout, QWidget
 
 from core.i18n import tr
+from ui.anim import PillButton, Theme
 from ui.icons import load_mascot_pixmap
 
 try:
@@ -830,6 +833,237 @@ class ScreenEyedropperOverlay(QWidget):
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
             f"{c.red()}, {c.green()}, {c.blue()}",
         )
+        p.end()
+
+
+class ScreenOcrOverlay(QWidget):
+    """Full-screen region selector for Screen OCR with instant Copy / Translate action bar."""
+
+    region_captured = Signal(object, str)  # QImage, action ("copy" | "translate")
+    cancelled = Signal()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.Tool
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setCursor(Qt.CursorShape.CrossCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+        self._bg_pixmap = QPixmap()
+        self._dragging = False
+        self._has_selection = False
+        self._start_pt = QPoint()
+        self._end_pt = QPoint()
+        self._sel_rect = QRect()
+
+        self._action_bar = QWidget(self)
+        self._action_bar.setStyleSheet(
+            f"QWidget {{ background-color: rgba(11, 11, 14, 240); "
+            f"border: 1px solid {Theme.accent}; border-radius: 11px; }}"
+        )
+        ab_lay = QHBoxLayout(self._action_bar)
+        ab_lay.setContentsMargins(6, 4, 6, 4)
+        ab_lay.setSpacing(6)
+
+        self.copy_btn = PillButton(tr("copy"), icon_kind="copy", icon_size=12)
+        self.copy_btn.setFixedHeight(26)
+        self.copy_btn.clicked.connect(lambda: self._emit_region("copy"))
+
+        self.translate_btn = PillButton(
+            tr("translate"), icon_kind="translate", variant="AccentBtn", icon_size=12
+        )
+        self.translate_btn.setFixedHeight(26)
+        self.translate_btn.clicked.connect(lambda: self._emit_region("translate"))
+
+        self.cancel_btn = PillButton("", icon_kind="close", variant="IconBtn", icon_size=11)
+        self.cancel_btn.setFixedSize(24, 24)
+        self.cancel_btn.clicked.connect(self._cancel)
+
+        ab_lay.addWidget(self.copy_btn)
+        ab_lay.addWidget(self.translate_btn)
+        ab_lay.addWidget(self.cancel_btn)
+        self._action_bar.hide()
+
+    def start_capture(self) -> None:
+        self.copy_btn.setText(tr("copy"))
+        self.translate_btn.setText(tr("translate"))
+        self._action_bar.setStyleSheet(
+            f"QWidget {{ background-color: rgba(11, 11, 14, 240); "
+            f"border: 1px solid {Theme.accent}; border-radius: 11px; }}"
+        )
+        screen = QGuiApplication.primaryScreen()
+        if screen:
+            vg = screen.virtualGeometry()
+            self._bg_pixmap = screen.grabWindow(0, vg.x(), vg.y(), vg.width(), vg.height())
+            self.setGeometry(vg)
+        else:
+            self._bg_pixmap = QPixmap()
+            self.resize(1280, 720)
+
+        self._dragging = False
+        self._has_selection = False
+        self._sel_rect = QRect()
+        self._action_bar.hide()
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        self.setFocus()
+        self.update()
+
+    def _current_rect(self) -> QRect:
+        return QRect(self._start_pt, self._end_pt).normalized().intersected(self.rect())
+
+    def _position_action_bar(self) -> None:
+        self._action_bar.adjustSize()
+        bw = self._action_bar.sizeHint().width()
+        bh = self._action_bar.sizeHint().height()
+        r = self._sel_rect
+        x = max(8, min(self.width() - bw - 8, r.right() - bw + 1))
+        y = r.bottom() + 8
+        if y + bh + 8 > self.height():
+            y = max(8, r.top() - bh - 8)
+        self._action_bar.setGeometry(x, y, bw, bh)
+        self._action_bar.show()
+        self._action_bar.raise_()
+
+    def _crop_selection_image(self) -> QImage:
+        r = self._sel_rect
+        if r.width() < 2 or r.height() < 2:
+            return QImage()
+        if not self._bg_pixmap.isNull():
+            dpr = self._bg_pixmap.devicePixelRatio() or 1.0
+            phys = QRect(
+                round(r.x() * dpr),
+                round(r.y() * dpr),
+                max(1, round(r.width() * dpr)),
+                max(1, round(r.height() * dpr)),
+            )
+            return self._bg_pixmap.copy(phys).toImage()
+        img = QImage(r.width(), r.height(), QImage.Format.Format_RGBA8888)
+        img.fill(QColor(255, 255, 255))
+        return img
+
+    def _emit_region(self, action: str) -> None:
+        if not self._has_selection:
+            return
+        img = self._crop_selection_image()
+        self._action_bar.hide()
+        self.hide()
+        if not img.isNull():
+            self.region_captured.emit(img, action)
+        else:
+            self.cancelled.emit()
+
+    def _cancel(self) -> None:
+        self._action_bar.hide()
+        self.hide()
+        self.cancelled.emit()
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.RightButton:
+            self._cancel()
+            event.accept()
+            return
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._action_bar.hide()
+            self._dragging = True
+            self._has_selection = False
+            self._start_pt = event.position().toPoint()
+            self._end_pt = self._start_pt
+            self._sel_rect = QRect()
+            self.update()
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if self._dragging:
+            self._end_pt = event.position().toPoint()
+            self._sel_rect = self._current_rect()
+            self.update()
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and self._dragging:
+            self._dragging = False
+            self._end_pt = event.position().toPoint()
+            self._sel_rect = self._current_rect()
+            if self._sel_rect.width() >= 12 and self._sel_rect.height() >= 8:
+                self._has_selection = True
+                self._position_action_bar()
+            else:
+                self._has_selection = False
+                self._sel_rect = QRect()
+            self.update()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def keyPressEvent(self, event) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            self._cancel()
+            event.accept()
+            return
+        if self._has_selection and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            self._emit_region("translate")
+            event.accept()
+            return
+        if (
+            self._has_selection
+            and (event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+            and event.key() == Qt.Key.Key_C
+        ):
+            self._emit_region("copy")
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    def paintEvent(self, event) -> None:
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        if not self._bg_pixmap.isNull():
+            p.drawPixmap(self.rect(), self._bg_pixmap)
+
+        outer = QPainterPath()
+        outer.addRect(QRectF(self.rect()))
+        r = self._sel_rect
+        if r.width() > 1 and r.height() > 1:
+            inner = QPainterPath()
+            inner.addRect(QRectF(r))
+            outer = outer.subtracted(inner)
+        p.fillPath(outer, QColor(8, 8, 12, 135))
+
+        if r.width() > 1 and r.height() > 1:
+            accent = QColor(Theme.accent)
+            p.setPen(QPen(accent, 2.0))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawRect(QRectF(r).adjusted(0.5, 0.5, -0.5, -0.5))
+
+            dim_txt = f"{r.width()} × {r.height()}"
+            badge_y = max(6.0, float(r.top()) - 24.0)
+            badge = QRectF(float(r.left()), badge_y, 76.0, 18.0)
+            p.setPen(Qt.PenStyle.NoPen)
+            p.setBrush(QColor(11, 11, 14, 215))
+            p.drawRoundedRect(badge, 5.0, 5.0)
+            p.setPen(QColor("#F4F2EE"))
+            p.setFont(QFont("Segoe UI", 8, QFont.Weight.DemiBold))
+            p.drawText(badge, Qt.AlignmentFlag.AlignCenter, dim_txt)
+        else:
+            hint = tr("ocr_hint")
+            pill_w = min(float(self.width() - 32), 420.0)
+            pill = QRectF((self.width() - pill_w) / 2.0, 20.0, pill_w, 30.0)
+            p.setPen(QPen(QColor(Theme.accent), 1.0))
+            p.setBrush(QColor(11, 11, 14, 225))
+            p.drawRoundedRect(pill, 12.0, 12.0)
+            p.setPen(QColor("#F4F2EE"))
+            p.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
+            p.drawText(pill, Qt.AlignmentFlag.AlignCenter, hint)
         p.end()
 
 

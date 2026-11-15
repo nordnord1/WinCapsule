@@ -195,6 +195,8 @@ class PillWindow(QWidget):
         self.expanded_panel.collapse_requested.connect(self.collapse)
         self.expanded_panel.timer_finished.connect(self.show_timer_toast)
         self.expanded_panel.alarm_triggered.connect(self.show_alarm_toast)
+        self.expanded_panel.ocr_snip_requested.connect(self.start_screen_ocr)
+        self.expanded_panel.ocr_session_finished.connect(self._finish_screen_ocr)
 
     def _setup_animations_and_timers(self) -> None:
         self._morph_anim = QVariantAnimation(self)
@@ -277,6 +279,18 @@ class PillWindow(QWidget):
         self.expanded_panel.show_settings()
         if self._mode != self.MODE_EXPANDED:
             self._enter_expanded_mode(reset_page=False)
+
+    def start_screen_ocr(self) -> None:
+        """Temporarily hide PillWindow so underlying text is clean, then open ScreenOcrOverlay."""
+        self.setVisible(False)
+        QTimer.singleShot(120, self.expanded_panel.begin_ocr_overlay)
+
+    def _finish_screen_ocr(self) -> None:
+        if not self._cfg.appearance.hidden:
+            self.setVisible(True)
+            self.raise_()
+            self._restore_active_opacity()
+            self._reset_idle_timer()
 
     def show_capslock_toast(self, is_on: bool) -> None:
         if not self._cfg.modules.show_capslock_toast or self._cfg.appearance.hidden:

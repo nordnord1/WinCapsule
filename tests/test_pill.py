@@ -385,3 +385,121 @@ def test_autostart_device_monitor_and_clipboard_delete(qapp, tmp_path):
     assert win.toast_title_lbl.text() == "DEVICE CONNECTED"
     assert "Kingston" in win.toast_sub_lbl.text()
     win.close()
+
+
+def test_screen_ocr_overlay_and_service(qapp, monkeypatch):
+    from PySide6.QtCore import QPointF, QRect, Qt
+    from PySide6.QtGui import QColor, QImage, QMouseEvent, QPixmap
+    from PySide6.QtWidgets import QApplication
+    import services.screen_ocr as screen_ocr
+    from ui.widgets import ScreenOcrOverlay
+
+    # 1. Image preparation upscales small crops to RGBA8888
+    tiny = QImage(120, 40, QImage.Format.Format_RGB32)
+    tiny.fill(QColor("#22252A"))
+    prepared = screen_ocr._prepare_ocr_image(tiny)
+    assert prepared.width() == 240
+    assert prepared.height() == 80
+    assert prepared.format() == QImage.Format.Format_RGBA8888
+
+    # 2. ScreenOcrOverlay drag selection reveals floating Copy & Translate buttons
+    overlay = ScreenOcrOverlay()
+    overlay.resize(640, 480)
+    overlay._bg_pixmap = QPixmap(640, 480)
+    overlay._bg_pixmap.fill(QColor("#141518"))
+    overlay.show()
+
+    captured = []
+    overlay.region_captured.connect(lambda img, action: captured.append((img, action)))
+
+    p0 = QPointF(80, 60)
+    p1 = QPointF(280, 160)
+    overlay.mousePressEvent(
+        QMouseEvent(
+            QMouseEvent.Type.MouseButtonPress,
+            p0,
+            p0,
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+    )
+    overlay.mouseMoveEvent(
+        QMouseEvent(
+            QMouseEvent.Type.MouseMove,
+            p1,
+            p1,
+            Qt.MouseButton.NoButton,
+            Qt.MouseButton.LeftButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+    )
+    overlay.mouseReleaseEvent(
+        QMouseEvent(
+            QMouseEvent.Type.MouseButtonRelease,
+            p1,
+            p1,
+            Qt.MouseButton.LeftButton,
+            Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+    )
+
+    assert overlay._has_selection is True
+    assert overlay._sel_rect == QRect(80, 60, 201, 101)
+    assert overlay._action_bar.isVisible()
+    assert overlay.copy_btn.isVisible()
+    assert overlay.translate_btn.isVisible()
+
+    # Clicking Copy emits region + "copy"
+    overlay.copy_btn.click()
+    assert len(captured) == 1
+    assert captured[0][1] == "copy"
+    assert not captured[0][0].isNull()
+
+    # Re-open selection and click Translate -> emits region + "translate"
+    overlay._has_selection = True
+    overlay._sel_rect = QRect(80, 60, 200, 100)
+    overlay.translate_btn.click()
+    assert len(captured) == 2
+    assert captured[1][1] == "translate"
+
+    # 3. OcrService routes recognize_bytes asynchronously and Panel handles both actions
+    import services.text_tools as text_tools
+    monkeypatch.setattr(screen_ocr, "_ocr_via_winrt", lambda *a, **k: None)
+    monkeypatch.setattr(screen_ocr, "_ocr_via_tesseract", lambda *a, **k: None)
+    monkeypatch.setattr(screen_ocr, "_ocr_via_cloud", lambda _png: "Hello OCR")
+    monkeypatch.setattr(text_tools, "translate_text", lambda t, sl="auto", tl="uk": ("Привіт OCR", "en", tl))
+
+    cfg = AppConfig()
+    win = PillWindow(cfg)
+    win.show()
+    win.toggle_expand()
+    panel = win.expanded_panel
+    assert panel.ocr_snip_btn is not None
+    panel.switch_page(3)
+    qapp.processEvents()
+    page_w = panel.text_tools_page.width()
+    assert page_w <= 488
+    top_btns = [panel.ocr_snip_btn, panel.paste_btn, panel.clip_fix_btn, panel.clear_in_btn]
+    assert top_btns[-1].geometry().right() <= page_w
+    for i in range(len(top_btns) - 1):
+        assert top_btns[i].geometry().right() < top_btns[i + 1].geometry().x()
+
+    req_id = panel._ocr_service.recognize_image(tiny, action="translate")
+    assert req_id == panel._ocr_service.latest_id
+    deadline = time.time() + 2.0
+    while time.time() < deadline and not panel.text_tool_input.toPlainText():
+        qapp.processEvents()
+        time.sleep(0.02)
+
+    assert panel.text_tool_input.toPlainText() == "Hello OCR"
+
+    # Copy action emits clipboard_item_clicked with recognized text and fills input
+    copied_signals = []
+    panel.clipboard_item_clicked.connect(copied_signals.append)
+    panel._on_ocr_ready(panel._ocr_service.latest_id, "Copied Snip", "copy")
+    assert copied_signals == ["Copied Snip"]
+    assert panel.text_tool_input.toPlainText() == "Copied Snip"
+    overlay.close()
+    win.close()

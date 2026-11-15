@@ -36,6 +36,7 @@ from PySide6.QtWidgets import (
 from core.config import AppConfig, AppearanceConfig, ModulesConfig
 from core.i18n import set_language, tr
 from services.media_smtc import MediaInfo
+from services.screen_ocr import OcrService
 from services.text_tools import (
     LANG_NAMES,
     TRANSLATOR_SOURCE_LANGS,
@@ -55,6 +56,7 @@ from ui.widgets import (
     HumidityBarWidget,
     PressureArcWidget,
     ScreenEyedropperOverlay,
+    ScreenOcrOverlay,
     SmoothCheckBox,
     SystemStatsWidget,
     ThinDivider,
@@ -390,6 +392,8 @@ class ExpandedPanel(QWidget):
     clipboard_item_clicked = Signal(str)
     clipboard_item_delete_requested = Signal(str)
     clipboard_clear_requested = Signal()
+    ocr_snip_requested = Signal()
+    ocr_session_finished = Signal()
     weather_refresh_requested = Signal()
     weather_city_changed = Signal(str)
     timer_finished = Signal()
@@ -434,6 +438,14 @@ class ExpandedPanel(QWidget):
 
         self._eyedropper = ScreenEyedropperOverlay()
         self._eyedropper.color_picked.connect(self._on_eyedropper_picked)
+
+        self._ocr_overlay = ScreenOcrOverlay()
+        self._ocr_overlay.region_captured.connect(self._on_ocr_region_captured)
+        self._ocr_overlay.cancelled.connect(self._on_ocr_cancelled)
+
+        self._ocr_service = OcrService(self)
+        self._ocr_service.ocr_ready.connect(self._on_ocr_ready)
+        self._ocr_service.ocr_error.connect(self._on_ocr_error)
 
         self._translator = TranslatorService(self)
         self._translator.translation_ready.connect(self._on_translation_ready)
@@ -992,6 +1004,13 @@ class ExpandedPanel(QWidget):
         self.layout_hint_btn.setVisible(False)
         self.layout_hint_btn.clicked.connect(self._on_fix_layout_clicked)
 
+        self.ocr_snip_btn = PillButton(
+            tr("ocr_snip"), icon_kind="scan_text", variant="IconBtn", icon_size=12
+        )
+        self.ocr_snip_btn.setFixedHeight(20)
+        self.ocr_snip_btn.setToolTip(tr("ocr_snip_tip"))
+        self.ocr_snip_btn.clicked.connect(self.ocr_snip_requested.emit)
+
         self.paste_btn = PillButton(tr("from_clip"), icon_kind="paste", variant="IconBtn", icon_size=12)
         self.paste_btn.setFixedHeight(20)
         self.paste_btn.clicked.connect(self._paste_into_text_tool)
@@ -1009,6 +1028,7 @@ class ExpandedPanel(QWidget):
         in_head.addWidget(self.in_title_lbl)
         in_head.addWidget(self.layout_hint_btn)
         in_head.addStretch()
+        in_head.addWidget(self.ocr_snip_btn)
         in_head.addWidget(self.paste_btn)
         in_head.addWidget(self.clip_fix_btn)
         in_head.addWidget(self.clear_in_btn)
@@ -1266,6 +1286,8 @@ class ExpandedPanel(QWidget):
         self._rebuild_alarms_ui()
 
         self.in_title_lbl.setText(tr("input_text"))
+        self.ocr_snip_btn.setText(tr("ocr_snip"))
+        self.ocr_snip_btn.setToolTip(tr("ocr_snip_tip"))
         self.paste_btn.setText(tr("from_clip"))
         self.clip_fix_btn.setText(tr("clip_layout"))
         self.clip_fix_btn.setToolTip(tr("clip_layout_tip"))
@@ -1381,6 +1403,45 @@ class ExpandedPanel(QWidget):
         self._tr_direction = f"{self._src_lang}_{self._tgt_lang}"
         if self.text_tool_input.text().strip():
             self._run_translate()
+
+    def begin_ocr_overlay(self) -> None:
+        self._ocr_overlay.start_capture()
+
+    def _on_ocr_cancelled(self) -> None:
+        self.ocr_session_finished.emit()
+
+    def _on_ocr_region_captured(self, image, action: str) -> None:
+        self.ocr_session_finished.emit()
+        self._tr_debounce.stop()
+        self.loading_dots.start()
+        self.text_tool_status.setText(tr("status_recognizing"))
+        self._ocr_service.recognize_image(image, action=action, lang_hint=self._src_lang)
+
+    def _on_ocr_ready(self, req_id: int, text: str, action: str) -> None:
+        if req_id != self._ocr_service.latest_id:
+            return
+        self.loading_dots.stop()
+        cleaned = (text or "").strip()
+        if not cleaned:
+            self.text_tool_status.setText(tr("ocr_empty"))
+            return
+        self.text_tool_input.blockSignals(True)
+        self.text_tool_input.setText(cleaned)
+        self.text_tool_input.blockSignals(False)
+        self.layout_hint_btn.setVisible(False)
+        self.input_tile.flash()
+
+        if action == "copy":
+            self.clipboard_item_clicked.emit(cleaned)
+            self.text_tool_status.setText(tr("ocr_copied"))
+        else:
+            self._run_translate()
+
+    def _on_ocr_error(self, req_id: int, err: str) -> None:
+        if req_id != self._ocr_service.latest_id:
+            return
+        self.loading_dots.stop()
+        self.text_tool_status.setText(err)
 
     def _paste_into_text_tool(self) -> None:
         if self._all_clip_items:

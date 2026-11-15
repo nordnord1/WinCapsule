@@ -65,6 +65,7 @@ https://github.com/nordnord1/WinCapsule/raw/main/assets/video/demo.mp4
 - **Weather Tab (OpenWeather)**: Temperature, feels-like, min/max, circular animated wind compass, humidity comfort bar, pressure arc gauge (mmHg), precipitation, and visibility/cloud cover.
 - **Focus & Time**: Pomodoro / custom countdown **Timer**, **Stopwatch**, **Alarms** with custom notes, and a quick **To-Do** checklist synced with the Home tiles.
 - **Text & Translate**:
+  - **Quick Screen OCR & Translate**: Snip any screen region and click **Copy** or **Translate** right on the selection to capture text via Windows OCR, Tesseract, or cloud OCR fallback.
   - **6-Language Expanding Dropdown Translator**: Translate between **Auto**, **Ukrainian**, **English**, **Russian**, **Spanish**, **French**, and **Polish** with instant I/O & language swapping.
   - **Wrong Keyboard Layout Fixer**: Fixes mistyped text (`ghbdsn` ↔ `привіт`) directly from the input box or clipboard in one click.
 - **Clipboard History**: Automatic clipboard capture with instant search, click-to-copy, **single-item delete**, and configurable history limit.

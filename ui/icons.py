@@ -472,6 +472,20 @@ def render_vector_pixmap(
         for i in range(len(pts) - 1):
             p.drawLine(pts[i], pts[i + 1])
 
+    elif kind == "scan_text":
+        # Corner brackets + horizontal text lines inside
+        p.drawLine(QPointF(s * 0.16, s * 0.34), QPointF(s * 0.16, s * 0.16))
+        p.drawLine(QPointF(s * 0.16, s * 0.16), QPointF(s * 0.34, s * 0.16))
+        p.drawLine(QPointF(s * 0.66, s * 0.16), QPointF(s * 0.84, s * 0.16))
+        p.drawLine(QPointF(s * 0.84, s * 0.16), QPointF(s * 0.84, s * 0.34))
+        p.drawLine(QPointF(s * 0.16, s * 0.66), QPointF(s * 0.16, s * 0.84))
+        p.drawLine(QPointF(s * 0.16, s * 0.84), QPointF(s * 0.34, s * 0.84))
+        p.drawLine(QPointF(s * 0.66, s * 0.84), QPointF(s * 0.84, s * 0.84))
+        p.drawLine(QPointF(s * 0.84, s * 0.84), QPointF(s * 0.84, s * 0.66))
+        p.setPen(QPen(ac, 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawLine(QPointF(s * 0.30, s * 0.42), QPointF(s * 0.70, s * 0.42))
+        p.drawLine(QPointF(s * 0.30, s * 0.58), QPointF(s * 0.58, s * 0.58))
+
     p.end()
     return pm
 
