@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 from core.config import AppConfig, AppearanceConfig, default_downloads_dir
 from core.i18n import LANGUAGES, set_language, tr
 from core.themes import THEMES, apply_preset
+from services.autostart import is_autostart_enabled, set_autostart_enabled
 from ui.anim import CollapsibleSection, PillButton
 from ui.widgets import OVERVIEW_TILE_OPTIONS, SmoothCheckBox, get_tile_options
 
@@ -287,6 +288,7 @@ class InlineSettingsPanel(QWidget):
         self.chk_day_progress = self._make_checkbox(tr("chk_day_prog"))
         self.chk_overview_tiles = self._make_checkbox(tr("chk_tiles"))
         self.chk_capslock = self._make_checkbox(tr("chk_caps"))
+        self.chk_devices = self._make_checkbox(tr("chk_devices"))
         self.chk_downloads = self._make_checkbox(tr("chk_dl"))
         grid = QGridLayout()
         grid.setHorizontalSpacing(14)
@@ -298,6 +300,7 @@ class InlineSettingsPanel(QWidget):
             self.chk_day_progress,
             self.chk_overview_tiles,
             self.chk_capslock,
+            self.chk_devices,
             self.chk_downloads,
         )):
             grid.addWidget(c, i // 2, i % 2)
@@ -406,6 +409,11 @@ class InlineSettingsPanel(QWidget):
         flags.addWidget(self.always_on_top_chk)
         flags.addWidget(self.hidden_chk)
         lay.addLayout(flags)
+
+        self.autostart_chk = SmoothCheckBox(tr("autostart_lbl"))
+        self.autostart_chk.toggled.connect(self._on_autostart_toggled)
+        self._checkboxes.append(self.autostart_chk)
+        lay.addWidget(self.autostart_chk)
 
     def _build_folders(self, lay: QVBoxLayout) -> None:
         self.folders_hint_lbl = _muted(tr("folders_hint"))
@@ -546,6 +554,7 @@ class InlineSettingsPanel(QWidget):
         self.chk_day_progress.setText(tr("chk_day_prog"))
         self.chk_overview_tiles.setText(tr("chk_tiles"))
         self.chk_capslock.setText(tr("chk_caps"))
+        self.chk_devices.setText(tr("chk_devices"))
         self.chk_downloads.setText(tr("chk_dl"))
         self.tiles_sec_lbl.setText(tr("tiles_lbl"))
         self.clip_limit_lbl.setText(tr("clip_limit"))
@@ -557,6 +566,7 @@ class InlineSettingsPanel(QWidget):
         self.idle_fade_chk.setText(tr("idle_fade"))
         self.always_on_top_chk.setText(tr("always_top"))
         self.hidden_chk.setText(tr("hide_tray"))
+        self.autostart_chk.setText(tr("autostart_lbl"))
 
         self.folders_hint_lbl.setText(tr("folders_hint"))
         self.folder_name_input.setPlaceholderText(tr("folder_name_ph"))
@@ -726,6 +736,7 @@ class InlineSettingsPanel(QWidget):
             self.idle_delay_spin.setValue(a.idle_delay_sec)
             self.always_on_top_chk.setChecked(a.always_on_top)
             self.hidden_chk.setChecked(a.hidden)
+            self.autostart_chk.setChecked(is_autostart_enabled())
 
             self.chk_compact_mascot.setChecked(a.compact_show_mascot)
             self.chk_compact_clock.setChecked(a.compact_show_clock)
@@ -740,6 +751,7 @@ class InlineSettingsPanel(QWidget):
             self.chk_day_progress.setChecked(m.show_day_progress)
             self.chk_overview_tiles.setChecked(m.show_overview_tiles)
             self.chk_capslock.setChecked(m.show_capslock_toast)
+            self.chk_devices.setChecked(m.show_device_toast)
             self.chk_downloads.setChecked(m.show_download_toast)
             self.set_overview_slot(0, m.overview_tile_1, emit=False)
             self.set_overview_slot(1, m.overview_tile_2, emit=False)
@@ -757,6 +769,15 @@ class InlineSettingsPanel(QWidget):
         finally:
             self._loading = False
         self._refresh_subtitles()
+
+    def _on_autostart_toggled(self, checked: bool) -> None:
+        if self._loading:
+            return
+        actual = set_autostart_enabled(checked)
+        if actual != checked:
+            self.autostart_chk.blockSignals(True)
+            self.autostart_chk.setChecked(actual)
+            self.autostart_chk.blockSignals(False)
 
     def _on_y_changed(self, val: int) -> None:
         self.y_val_lbl.setText(f"{val}px")
@@ -842,6 +863,7 @@ class InlineSettingsPanel(QWidget):
         m.overview_tile_2 = self._overview_slot_kinds[1]
         m.overview_tile_3 = self._overview_slot_kinds[2]
         m.show_capslock_toast = self.chk_capslock.isChecked()
+        m.show_device_toast = self.chk_devices.isChecked()
         m.show_download_toast = self.chk_downloads.isChecked()
         self._cfg.clipboard.max_items = self.clip_max_spin.value()
 

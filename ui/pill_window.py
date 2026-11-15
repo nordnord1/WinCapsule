@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ctypes
+from ctypes import wintypes
 import math
 import os
 import subprocess
@@ -55,6 +57,7 @@ class PillWindow(QWidget):
 
     settings_applied = Signal(object)  # AppConfig
     hide_requested = Signal()
+    device_change_detected = Signal()
 
     MODE_COMPACT = "compact"
     MODE_TOAST = "toast"
@@ -81,6 +84,7 @@ class PillWindow(QWidget):
 
         set_language(config.appearance.language)
         self._setup_window_flags()
+        self._register_device_notifications()
         self._build_children()
         self._drop_rect = self._target_drop_rect()
         self._setup_animations_and_timers()
@@ -97,6 +101,38 @@ class PillWindow(QWidget):
         self.setWindowFlags(flags)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setMouseTracking(True)
+
+    def _register_device_notifications(self) -> None:
+        try:
+            class _DEV_BROADCAST_DEVICEINTERFACE(ctypes.Structure):
+                _fields_ = [
+                    ("dbcc_size", wintypes.DWORD),
+                    ("dbcc_devicetype", wintypes.DWORD),
+                    ("dbcc_reserved", wintypes.DWORD),
+                    ("dbcc_classguid", ctypes.c_byte * 16),
+                    ("dbcc_name", ctypes.c_wchar * 2),
+                ]
+
+            flt = _DEV_BROADCAST_DEVICEINTERFACE()
+            flt.dbcc_size = ctypes.sizeof(_DEV_BROADCAST_DEVICEINTERFACE)
+            flt.dbcc_devicetype = 5  # DBT_DEVTYP_DEVICEINTERFACE
+            ctypes.windll.user32.RegisterDeviceNotificationW(
+                int(self.winId()),
+                ctypes.byref(flt),
+                0x00000004,  # DEVICE_NOTIFY_WINDOW_HANDLE | DEVICE_NOTIFY_ALL_INTERFACE_CLASSES
+            )
+        except Exception:
+            pass
+
+    def nativeEvent(self, eventType, message):
+        try:
+            if bytes(eventType) == b"windows_generic_MSG":
+                msg = wintypes.MSG.from_address(int(message))
+                if msg.message == 0x0219:  # WM_DEVICECHANGE
+                    self.device_change_detected.emit()
+        except Exception:
+            pass
+        return super().nativeEvent(eventType, message)
 
     def _build_children(self) -> None:
         # ── Toast Overlay (parent=self) ────────────────────────────────
@@ -262,6 +298,23 @@ class PillWindow(QWidget):
         self.toast_open_btn.setVisible(False)
         self.toast_folder_btn.setVisible(False)
         self._enter_toast_mode(duration_ms=2200)
+
+    def show_device_toast(self, icon_kind: str, device_name: str) -> None:
+        if not self._cfg.modules.show_device_toast or self._cfg.appearance.hidden:
+            return
+        if self._mode == self.MODE_EXPANDED:
+            return
+        a = self._cfg.appearance
+        self.toast_icon_lbl.setPixmap(
+            render_vector_pixmap(icon_kind, 18, a.text_color, a.accent_color)
+        )
+        self.toast_title_lbl.setText(tr("toast_device_connected"))
+        clean_name = device_name if len(device_name) <= 34 else device_name[:33] + "…"
+        self.toast_sub_lbl.setText(clean_name)
+        self._toast_has_actions = False
+        self.toast_open_btn.setVisible(False)
+        self.toast_folder_btn.setVisible(False)
+        self._enter_toast_mode(duration_ms=2600)
 
     def show_timer_toast(self) -> None:
         QApplication.beep()

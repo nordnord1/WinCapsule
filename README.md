@@ -67,10 +67,11 @@ https://github.com/nordnord1/WinCapsule/raw/main/assets/video/demo.mp4
 - **Text & Translate**:
   - **6-Language Expanding Dropdown Translator**: Translate between **Auto**, **Ukrainian**, **English**, **Russian**, **Spanish**, **French**, and **Polish** with instant I/O & language swapping.
   - **Wrong Keyboard Layout Fixer**: Fixes mistyped text (`ghbdsn` ↔ `привіт`) directly from the input box or clipboard in one click.
-- **Clipboard History**: Automatic clipboard capture with instant search, click-to-copy, and configurable history limit.
+- **Clipboard History**: Automatic clipboard capture with instant search, click-to-copy, **single-item delete**, and configurable history limit.
 - **Settings & Personalization**:
   - **5 Built-in Presets** (`Warm Obsidian`, `Obsidian`, `Midnight`, `Emerald`, `Crimson`) + full **RGB / HEX color sliders** for Accent, Background, and Ambient Glow.
-  - **Download Monitor Toasts**: Watches selected folders and notifies when downloads complete or pause, with quick *Open* / *Folder* actions.
+  - **Device & Download Toasts**: Live pop-up alerts when USB drives, mice, or Bluetooth headphones connect, plus folder download completion/pause toasts with quick *Open* / *Folder* actions.
+  - **Autostart (`shell:startup`)**: One-click Windows Startup toggle directly in Settings.
   - **Full Live Localization**: Instant switching between **UA**, **RU**, and **EN**.
 
 ---

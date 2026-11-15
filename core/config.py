@@ -82,6 +82,7 @@ class ModulesConfig:
     overview_tile_2: str = "ram"
     overview_tile_3: str = "disk_c"
     show_capslock_toast: bool = True
+    show_device_toast: bool = True
     show_download_toast: bool = True
     show_clipboard: bool = True
 

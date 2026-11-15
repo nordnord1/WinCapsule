@@ -56,6 +56,11 @@ class ClipboardManager(QObject):
         # Move selected item to top
         self.add_item(text)
 
+    def remove_item(self, text: str) -> None:
+        if text in self._items:
+            self._items.remove(text)
+            self.history_changed.emit()
+
     def clear(self) -> None:
         self._items.clear()
         self.history_changed.emit()

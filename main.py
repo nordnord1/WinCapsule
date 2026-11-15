@@ -12,6 +12,7 @@ from core.i18n import set_language
 from services.audio_volume import AudioVolumeService
 from services.capslock import CapsLockMonitor
 from services.clipboard_mgr import ClipboardManager
+from services.device_monitor import DeviceMonitor
 from services.downloads import DownloadMonitor
 from services.media_smtc import MediaSMTCService
 from services.weather import WeatherService
@@ -35,6 +36,7 @@ class PillApp:
         self.tray.show()
 
         self.capslock = CapsLockMonitor()
+        self.devices = DeviceMonitor()
         self.downloads = DownloadMonitor(self.cfg.downloads.watch_folders)
         self.clipboard = ClipboardManager(max_items=self.cfg.clipboard.max_items)
         self.media = MediaSMTCService()
@@ -70,6 +72,8 @@ class PillApp:
         self.tray.quit_requested.connect(self.quit)
 
         self.capslock.toggled.connect(self.window.show_capslock_toast)
+        self.window.device_change_detected.connect(self.devices.notify_wm_devicechange)
+        self.devices.device_connected.connect(self.window.show_device_toast)
         self.downloads.download_progress.connect(self.window.show_download_progress)
         self.downloads.download_cleared.connect(self.window.clear_download_progress)
         self.downloads.download_finished.connect(self.window.show_download_toast)
@@ -79,6 +83,9 @@ class PillApp:
         )
         self.window.expanded_panel.clipboard_item_clicked.connect(
             self.clipboard.copy_to_clipboard
+        )
+        self.window.expanded_panel.clipboard_item_delete_requested.connect(
+            self.clipboard.remove_item
         )
         self.window.expanded_panel.clipboard_clear_requested.connect(self.clipboard.clear)
 
@@ -100,6 +107,7 @@ class PillApp:
         self.clipboard.start()
         self.window.expanded_panel.update_clipboard(self.clipboard.items)
         self.capslock.start()
+        self.devices.start()
         self.downloads.start()
         self.media.start()
         self.audio_vol.start()
@@ -158,6 +166,7 @@ class PillApp:
     def quit(self) -> None:
         self._ipc_server.close()
         self.capslock.stop()
+        self.devices.stop()
         self.downloads.stop()
         self.media.stop()
         self.audio_vol.stop()

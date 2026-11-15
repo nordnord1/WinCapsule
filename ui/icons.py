@@ -441,6 +441,37 @@ def render_vector_pixmap(
         p.drawLine(QPointF(s * 0.72, cy), QPointF(s * 0.72, s * 0.64))
         p.drawLine(QPointF(s * 0.82, cy), QPointF(s * 0.82, s * 0.60))
 
+    elif kind == "usb":
+        p.drawRoundedRect(QRectF(s * 0.34, s * 0.18, s * 0.32, s * 0.18), 2.0, 2.0)
+        p.setPen(QPen(ac, 1.5, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawRoundedRect(QRectF(s * 0.28, s * 0.36, s * 0.44, s * 0.44), 3.0, 3.0)
+        p.drawLine(QPointF(s * 0.43, s * 0.25), QPointF(s * 0.43, s * 0.29))
+        p.drawLine(QPointF(s * 0.57, s * 0.25), QPointF(s * 0.57, s * 0.29))
+
+    elif kind == "headphones":
+        p.drawArc(QRectF(s * 0.18, s * 0.18, s * 0.64, s * 0.64), 0, 180 * 16)
+        p.setPen(QPen(ac, 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawRoundedRect(QRectF(s * 0.14, s * 0.48, s * 0.16, s * 0.30), 3.0, 3.0)
+        p.drawRoundedRect(QRectF(s * 0.70, s * 0.48, s * 0.16, s * 0.30), 3.0, 3.0)
+
+    elif kind == "mouse":
+        p.drawRoundedRect(QRectF(s * 0.28, s * 0.16, s * 0.44, s * 0.68), s * 0.22, s * 0.22)
+        p.setPen(QPen(ac, 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap))
+        p.drawLine(QPointF(cx, s * 0.28), QPointF(cx, s * 0.42))
+
+    elif kind == "bluetooth":
+        p.setPen(QPen(ac, 1.6, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+        pts = [
+            QPointF(s * 0.30, s * 0.34),
+            QPointF(s * 0.68, s * 0.66),
+            QPointF(s * 0.48, s * 0.84),
+            QPointF(s * 0.48, s * 0.16),
+            QPointF(s * 0.68, s * 0.34),
+            QPointF(s * 0.30, s * 0.66),
+        ]
+        for i in range(len(pts) - 1):
+            p.drawLine(pts[i], pts[i + 1])
+
     p.end()
     return pm
 

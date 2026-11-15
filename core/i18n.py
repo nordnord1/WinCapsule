@@ -212,6 +212,9 @@ _STRINGS: dict[str, dict[str, str]] = {
         "lang_de": "Німецька",
         "lang_it": "Італійська",
         "lang_be": "Білоруська",
+        "autostart_lbl": "Вкл автозапуск (shell:startup)",
+        "chk_devices": "Сповіщення пристроїв",
+        "toast_device_connected": "ПРИСТРІЙ ПІДКЛЮЧЕНО",
     },
     "ru": {
         "page_0": "Главная",
@@ -416,6 +419,9 @@ _STRINGS: dict[str, dict[str, str]] = {
         "lang_de": "Немецкий",
         "lang_it": "Итальянский",
         "lang_be": "Белорусский",
+        "autostart_lbl": "Вкл автозапуск (shell:startup)",
+        "chk_devices": "Уведомления устройств",
+        "toast_device_connected": "УСТРОЙСТВО ПОДКЛЮЧЕНО",
     },
     "en": {
         "page_0": "Home",
@@ -620,6 +626,9 @@ _STRINGS: dict[str, dict[str, str]] = {
         "lang_de": "German",
         "lang_it": "Italian",
         "lang_be": "Belarusian",
+        "autostart_lbl": "Enable autostart (shell:startup)",
+        "chk_devices": "Device connect toast",
+        "toast_device_connected": "DEVICE CONNECTED",
     },
 }
 

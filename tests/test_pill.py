@@ -328,3 +328,60 @@ def test_spinbox_visibility_text_tools_layout_and_i18n(qapp):
     assert win._target_drop_rect().width() == 320.0
 
     win.close()
+
+
+def test_autostart_device_monitor_and_clipboard_delete(qapp, tmp_path):
+    from services.autostart import is_autostart_enabled, set_autostart_enabled
+    from services.clipboard_mgr import ClipboardManager
+    from services.device_monitor import pick_best_connected_device
+
+    # (a) Autostart shortcut creation & removal in isolated folder
+    assert not is_autostart_enabled(folder=tmp_path)
+    assert set_autostart_enabled(True, folder=tmp_path)
+    assert is_autostart_enabled(folder=tmp_path)
+    assert (tmp_path / "WinCapsule.lnk").exists()
+    assert not set_autostart_enabled(False, folder=tmp_path)
+    assert not is_autostart_enabled(folder=tmp_path)
+
+    # (b) Device ranking chooses highest-priority friendly device over composite hubs
+    picked = pick_best_connected_device([
+        ("USB", "USB Composite Device"),
+        ("HIDClass", "USB Input Device"),
+        ("AudioEndpoint", "Headphones (WH-1000XM5)"),
+    ])
+    assert picked == ("headphones", "Headphones (WH-1000XM5)")
+
+    picked_mouse = pick_best_connected_device([
+        ("USB", "Generic USB Hub"),
+        ("Mouse", "Logitech G Pro"),
+    ])
+    assert picked_mouse == ("mouse", "Logitech G Pro")
+
+    # (c) Single-item deletion in ClipboardManager + UI delete button wiring
+    cm = ClipboardManager(max_items=10)
+    cm.add_item("first entry")
+    cm.add_item("second entry")
+    cm.remove_item("first entry")
+    assert cm.items == ["second entry"]
+
+    cfg = AppConfig()
+    cfg.appearance.hidden = False
+    win = PillWindow(cfg)
+    win.show()
+    win.expanded_panel.update_clipboard(["alpha", "beta"])
+    deleted = []
+    win.expanded_panel.clipboard_item_delete_requested.connect(deleted.append)
+    item0 = win.expanded_panel.clip_list.item(0)
+    row_w = win.expanded_panel.clip_list.itemWidget(item0)
+    assert row_w is not None
+    del_btn = row_w.findChild(win.expanded_panel.clip_clear_btn.__class__)
+    assert del_btn is not None
+    del_btn.click()
+    assert deleted == ["alpha"]
+
+    # (d) Device connect toast triggers clean toast mode
+    win.show_device_toast("usb", "Kingston DataTraveler 3.0")
+    assert win._mode == win.MODE_TOAST
+    assert win.toast_title_lbl.text() == "DEVICE CONNECTED"
+    assert "Kingston" in win.toast_sub_lbl.text()
+    win.close()

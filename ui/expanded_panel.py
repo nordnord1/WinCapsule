@@ -388,6 +388,7 @@ class ExpandedPanel(QWidget):
     volume_set_requested = Signal(int)
     mute_toggle_requested = Signal()
     clipboard_item_clicked = Signal(str)
+    clipboard_item_delete_requested = Signal(str)
     clipboard_clear_requested = Signal()
     weather_refresh_requested = Signal()
     weather_city_changed = Signal(str)
@@ -1746,12 +1747,35 @@ class ExpandedPanel(QWidget):
             return
         for text in filtered:
             preview = " ".join(text.split())
-            if len(preview) > 68:
-                preview = preview[:65] + "..."
-            item = QListWidgetItem(preview)
+            if len(preview) > 58:
+                preview = preview[:55] + "..."
+            item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, text)
             item.setToolTip(text[:500])
+            item.setSizeHint(QSize(0, 30))
+
+            row_w = QWidget()
+            row_w.setStyleSheet("background: transparent;")
+            r_lay = QHBoxLayout(row_w)
+            r_lay.setContentsMargins(6, 2, 4, 2)
+            r_lay.setSpacing(6)
+
+            lbl = QLabel(preview)
+            lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+            lbl.setStyleSheet("background: transparent; font-size: 12px;")
+
+            del_btn = PillButton("", icon_kind="close", variant="IconBtn", icon_size=11)
+            del_btn.setFixedSize(20, 20)
+            del_btn.setToolTip(tr("delete"))
+            del_btn.clicked.connect(
+                lambda _=False, raw=text: self.clipboard_item_delete_requested.emit(raw)
+            )
+
+            r_lay.addWidget(lbl, 1)
+            r_lay.addWidget(del_btn)
+
             self.clip_list.addItem(item)
+            self.clip_list.setItemWidget(item, row_w)
 
     def show_copied_feedback(self) -> None:
         self.clip_status_lbl.setText(tr("copied"))
